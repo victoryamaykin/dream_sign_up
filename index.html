@@ -52,70 +52,93 @@
         const airtableApiKey = 'patdWrVe3vzLEN0B5';
         const baseId = 'appb3Jntl1xXM6xrU/tblldq95nLtIf8RSM';
         const tableName = 'viwokyGhD4eBb9PQw';
-        const airtableUrl = `https://api.airtable.com/${baseId}/${tableName}`;
+        const airtableUrl = `https://api.airtable.com/v0/${baseId}/${tableName}`;
 
         // DOM Elements
-        const signupForm = document.getElementById('signupForm');
-        const slotsDiv = document.getElementById('slots');
+const signupForm = document.getElementById('signupForm');
+const slotsDiv = document.getElementById('slots');
 
-        // Fetch and Display Schedule
-        async function fetchSchedule() {
-            const response = await fetch(airtableUrl, {
-                headers: {
-                    Authorization: `Bearer ${airtableApiKey}`,
-                },
-            });
-
-            const data = await response.json();
-            slotsDiv.innerHTML = '';
-
-            if (data.records && data.records.length > 0) {
-                data.records.forEach(record => {
-                    const session = record.fields;
-                    const slotDiv = document.createElement('div');
-                    slotDiv.className = 'slot';
-                    slotDiv.innerHTML = `
-                        <p><strong>Name:</strong> ${session.Name || 'N/A'}</p>
-                        <p><strong>Phone:</strong> ${session.Phone || 'N/A'}</p>
-                        <p><strong>Time:</strong> ${new Date(session.Time).toLocaleString()}</p>
-                    `;
-                    slotsDiv.appendChild(slotDiv);
-                });
-            } else {
-                slotsDiv.innerHTML = '<p>No sessions scheduled yet.</p>';
-            }
-        }
-
-        // Add a New Session
-        signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const name = document.getElementById('name').value;
-            const phone = document.getElementById('phone').value;
-            const now = new Date();
-            const nextSlot = new Date(now.getTime() + 15 * 60000); // Next 15-minute slot
-
-            await fetch(airtableUrl, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${airtableApiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    fields: {
-                        Name: name,
-                        Phone: phone,
-                        Time: nextSlot.toISOString(),
-                    },
-                }),
-            });
-
-            fetchSchedule();
-            signupForm.reset();
+// Fetch and Display Schedule
+const fetchSchedule = async () => {
+    try {
+        const response = await axios.get(airtableUrl, {
+            headers: {
+                Authorization: `Bearer ${airtableApiKey}`,
+            },
         });
 
-        // Load Schedule on Page Load
-        fetchSchedule();
+        const records = response.data.records;
+        slotsDiv.innerHTML = '';
+
+        if (records && records.length > 0) {
+            records.forEach(record => {
+                const session = record.fields;
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'slot';
+                slotDiv.innerHTML = `
+                    <p><strong>Name:</strong> ${session.Name || 'N/A'}</p>
+                    <p><strong>Phone:</strong> ${session.Phone || 'N/A'}</p>
+                    <p><strong>Time:</strong> ${new Date(session.Time).toLocaleString()}</p>
+                `;
+                slotsDiv.appendChild(slotDiv);
+            });
+        } else {
+            slotsDiv.innerHTML = '<p>No sessions scheduled yet.</p>';
+        }
+    } catch (error) {
+        console.error('Error fetching schedule:', error.response?.data || error.message);
+    }
+};
+
+// Add a New Session
+const createRecord = async (name, phone) => {
+    const now = new Date();
+    const nextSlot = new Date(now.getTime() + 15 * 60000); // Next 15-minute slot
+    const data = {
+        records: [
+            {
+                fields: {
+                    Name: name,
+                    Phone: phone,
+                    Time: nextSlot.toISOString(),
+                },
+            },
+        ],
+    };
+
+    try {
+        await axios.post(airtableUrl, data, {
+            headers: {
+                Authorization: `Bearer ${airtableApiKey}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        console.log('Record created successfully');
+        fetchSchedule(); // Refresh the schedule
+    } catch (error) {
+        console.error('Error creating record:', error.response?.data || error.message);
+    }
+};
+
+// Handle Form Submission
+signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
+
+    if (!name) {
+        alert('Please enter your name.');
+        return;
+    }
+
+    await createRecord(name, phone);
+    signupForm.reset();
+});
+
+// Load Schedule on Page Load
+fetchSchedule();
     </script>
 </body>
 </html>
