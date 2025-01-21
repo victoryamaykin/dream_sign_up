@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15-Minute Sessions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        #schedule {
+            margin-top: 20px;
+        }
+        .slot {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sign Up for a Session</h1>
+    <form id="signupForm">
+        <input type="text" id="name" placeholder="Your Name" required>
+        <input type="tel" id="phone" placeholder="Your Phone (optional)">
+        <button type="submit">Sign Up</button>
+    </form>
+
+    <div id="schedule">
+        <h2>Current Schedule</h2>
+        <div id="slots"></div>
+    </div>
+
+    <script>
+        // Airtable Configuration
+        const airtableApiKey = 'patdWrVe3vzLEN0B5';
+        const baseId = 'appfn5wVWYbiZMQL3/tblO81xd7m1lMvo2d';
+        const tableName = 'Sessions';
+        const airtableUrl = `https://api.airtable.com/v0/${baseId}/${tableName}`;
+
+        // DOM Elements
+        const signupForm = document.getElementById('signupForm');
+        const slotsDiv = document.getElementById('slots');
+
+        // Fetch and Display Schedule
+        async function fetchSchedule() {
+            const response = await fetch(airtableUrl, {
+                headers: {
+                    Authorization: `Bearer ${airtableApiKey}`,
+                },
+            });
+
+            const data = await response.json();
+            slotsDiv.innerHTML = '';
+
+            if (data.records && data.records.length > 0) {
+                data.records.forEach(record => {
+                    const session = record.fields;
+                    const slotDiv = document.createElement('div');
+                    slotDiv.className = 'slot';
+                    slotDiv.innerHTML = `
+                        <p><strong>Name:</strong> ${session.Name || 'N/A'}</p>
+                        <p><strong>Phone:</strong> ${session.Phone || 'N/A'}</p>
+                        <p><strong>Time:</strong> ${new Date(session.Time).toLocaleString()}</p>
+                    `;
+                    slotsDiv.appendChild(slotDiv);
+                });
+            } else {
+                slotsDiv.innerHTML = '<p>No sessions scheduled yet.</p>';
+            }
+        }
+
+        // Add a New Session
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const now = new Date();
+            const nextSlot = new Date(now.getTime() + 15 * 60000); // Next 15-minute slot
+
+            await fetch(airtableUrl, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${airtableApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fields: {
+                        Name: name,
+                        Phone: phone,
+                        Time: nextSlot.toISOString(),
+                    },
+                }),
+            });
+
+            fetchSchedule();
+            signupForm.reset();
+        });
+
+        // Load Schedule on Page Load
+        fetchSchedule();
+    </script>
+</body>
+</html>
